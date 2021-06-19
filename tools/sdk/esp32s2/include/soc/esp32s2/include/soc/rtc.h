@@ -55,7 +55,7 @@ extern "C" {
 
 #define RTC_SLOW_CLK_X32K_CAL_TIMEOUT_THRES(cycles)  (cycles << 12)
 #define RTC_SLOW_CLK_8MD256_CAL_TIMEOUT_THRES(cycles)  (cycles << 12)
-#define RTC_SLOW_CLK_150K_CAL_TIMEOUT_THRES(cycles)  (cycles << 10)
+#define RTC_SLOW_CLK_90K_CAL_TIMEOUT_THRES(cycles)  (cycles << 10)
 
 #define RTC_SLOW_CLK_FREQ_90K      90000
 #define RTC_SLOW_CLK_FREQ_8MD256    (RTC_FAST_CLK_FREQ_APPROX / 256)
@@ -102,10 +102,19 @@ extern "C" {
 #define RTC_CNTL_PLL_BUF_WAIT_DEFAULT  20
 #define RTC_CNTL_XTL_BUF_WAIT_DEFAULT  100
 #define RTC_CNTL_CK8M_WAIT_DEFAULT  20
-#define RTC_CK8M_ENABLE_WAIT_DEFAULT 1
+#define RTC_CK8M_ENABLE_WAIT_DEFAULT 5
+
+/* Various delays to be programmed into power control state machines */
+#define RTC_CNTL_PLL_BUF_WAIT_SLP_CYCLES    (1)
+#define RTC_CNTL_XTL_BUF_WAIT_SLP_US    (1000)
+#define RTC_CNTL_CK8M_WAIT_SLP_CYCLES   (4)
+#define RTC_CNTL_WAKEUP_DELAY_CYCLES    (4)
 
 #define RTC_CNTL_CK8M_DFREQ_DEFAULT 172
 #define RTC_CNTL_SCK_DCAP_DEFAULT   255
+
+#define RTC_CNTL_ULPCP_TOUCH_START_WAIT_IN_SLEEP    (0xFF)
+#define RTC_CNTL_ULPCP_TOUCH_START_WAIT_DEFAULT     (0x10)
 
 /*
 set sleep_init default param
@@ -115,7 +124,7 @@ set sleep_init default param
 #define RTC_CNTL_DBG_ATTEN_MONITOR_DEFAULT  0
 #define RTC_CNTL_BIASSLP_MONITOR_DEFAULT  0
 #define RTC_CNTL_BIASSLP_SLEEP_DEFAULT  1
-#define RTC_CNTL_PD_CUR_MONITOR_DEFAULT  0
+#define RTC_CNTL_PD_CUR_MONITOR_DEFAULT  1
 #define RTC_CNTL_PD_CUR_SLEEP_DEFAULT  1
 
 #define APLL_SDM_STOP_VAL_1         0x09
@@ -172,7 +181,7 @@ typedef struct rtc_cpu_freq_config_s {
  * @brief RTC SLOW_CLK frequency values
  */
 typedef enum {
-    RTC_SLOW_FREQ_RTC = 0,      //!< Internal 150 kHz RC oscillator
+    RTC_SLOW_FREQ_RTC = 0,      //!< Internal 90 kHz RC oscillator
     RTC_SLOW_FREQ_32K_XTAL = 1, //!< External 32 kHz XTAL
     RTC_SLOW_FREQ_8MD256 = 2,   //!< Internal 8 MHz RC oscillator, divided by 256
 } rtc_slow_freq_t;
@@ -212,7 +221,7 @@ typedef struct {
     rtc_slow_freq_t slow_freq : 2;  //!< RTC_SLOW_CLK frequency to set
     uint32_t clk_rtc_clk_div : 8;
     uint32_t clk_8m_clk_div : 3;        //!< RTC 8M clock divider (division is by clk_8m_div+1, i.e. 0 means 8MHz frequency)
-    uint32_t slow_clk_dcap : 8;     //!< RTC 150k clock adjustment parameter (higher value leads to lower frequency)
+    uint32_t slow_clk_dcap : 8;     //!< RTC 90k clock adjustment parameter (higher value leads to lower frequency)
     uint32_t clk_8m_dfreq : 8;      //!< RTC 8m clock adjustment parameter (higher value leads to higher frequency)
 } rtc_clk_config_t;
 
@@ -238,9 +247,9 @@ typedef struct {
 } x32k_config_t;
 
 #define X32K_CONFIG_DEFAULT() { \
-    .dac = 1, \
+    .dac = 3, \
     .dres = 3, \
-    .dgm = 0, \
+    .dgm = 3, \
     .dbuf = 1, \
 }
 
@@ -287,6 +296,10 @@ typedef struct {
     .rtc_mem_powerup_cycles = OTHER_BLOCKS_POWERUP, \
     .rtc_mem_wait_cycles = OTHER_BLOCKS_WAIT, \
 }
+
+/* Two different calibration mode for slow clock */
+#define RTC_TIME_CAL_ONEOFF_MODE 0
+#define RTC_TIME_CAL_CYCLING_MODE 1
 
 void rtc_clk_divider_set(uint32_t div);
 
@@ -397,11 +410,6 @@ bool rtc_clk_8md256_enabled(void);
 void rtc_clk_apll_enable(bool enable, uint32_t sdm0, uint32_t sdm1, uint32_t sdm2, uint32_t o_div);
 
 /**
- * @brief Set XTAL wait cycles by RTC slow clock's period
- */
-void rtc_clk_set_xtal_wait(void);
-
-/**
  * @brief Select source for RTC_SLOW_CLK
  * @param slow_freq clock source (one of rtc_slow_freq_t values)
  */
@@ -416,7 +424,7 @@ rtc_slow_freq_t rtc_clk_slow_freq_get(void);
 /**
  * @brief Get the approximate frequency of RTC_SLOW_CLK, in Hz
  *
- * - if RTC_SLOW_FREQ_RTC is selected, returns ~150000
+ * - if RTC_SLOW_FREQ_RTC is selected, returns ~90000
  * - if RTC_SLOW_FREQ_32K_XTAL is selected, returns 32768
  * - if RTC_SLOW_FREQ_8MD256 is selected, returns ~33000
  *
@@ -518,7 +526,7 @@ void rtc_clk_apb_freq_update(uint32_t apb_freq);
  */
 uint32_t rtc_clk_apb_freq_get(void);
 
-uint32_t rtc_clk_cal_internal(rtc_cal_sel_t cal_clk, uint32_t slowclk_cycles);
+uint32_t rtc_clk_cal_internal(rtc_cal_sel_t cal_clk, uint32_t slowclk_cycles, uint32_t cal_mode);
 
 /**
  * @brief Measure RTC slow clock's period, based on main XTAL frequency
@@ -709,6 +717,17 @@ typedef struct {
  */
 void rtc_sleep_init(rtc_sleep_config_t cfg);
 
+/**
+ * @brief Low level initialize for rtc state machine waiting cycles after waking up
+ *
+ * This function configures the cycles chip need to wait for internal 8MHz
+ * oscillator and external 40MHz crystal. As we configure fixed time for waiting
+ * crystal, we need to pass period to calculate cycles. Now this function only
+ * used in lightsleep mode.
+ *
+ * @param slowclk_period re-calibrated slow clock period
+ */
+void rtc_sleep_low_init(uint32_t slowclk_period);
 
 #define RTC_EXT0_TRIG_EN    BIT(0)  //!< EXT0 GPIO wakeup
 #define RTC_EXT1_TRIG_EN    BIT(1)  //!< EXT1 GPIO wakeup
@@ -850,7 +869,13 @@ rtc_vddsdio_config_t rtc_vddsdio_get_config(void);
  */
 void rtc_vddsdio_set_config(rtc_vddsdio_config_t config);
 
-
+/**
+ * Using valid hardware calibration value to calibrate slowclk
+ * If there is no hardware calibration in process, start hardware calibration and wait for calibration finished
+ * @param cal_clk clock to be measured
+ * @param slowclk_cycles if no hardware calibration in process, use this amount of slow cycles to calibrate slowclk.
+ */
+uint32_t rtc_clk_cal_cycling(rtc_cal_sel_t cal_clk, uint32_t slowclk_cycles);
 #ifdef __cplusplus
 }
 #endif

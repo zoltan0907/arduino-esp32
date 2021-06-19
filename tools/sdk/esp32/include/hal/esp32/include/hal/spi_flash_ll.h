@@ -147,7 +147,7 @@ static inline void spi_flash_ll_get_buffer_data(spi_dev_t *dev, void *buffer, ui
     } else {
         // Otherwise, slow(er) path copies word by word
         int copy_len = read_len;
-        for (int i = 0; i < (read_len + 3) / 4; i++) {
+        for (size_t i = 0; i < (read_len + 3) / 4; i++) {
             int word_len = MIN(sizeof(uint32_t), copy_len);
             uint32_t word = dev->data_buf[i];
             memcpy(buffer, &word, word_len);
@@ -400,6 +400,12 @@ static inline void spi_flash_ll_set_hold(spi_dev_t *dev, uint32_t hold_n)
 {
     dev->ctrl2.hold_time = hold_n;
     dev->user.cs_hold = (hold_n > 0? 1: 0);
+}
+
+static inline void spi_flash_ll_set_cs_setup(spi_dev_t *dev, uint32_t cs_setup_time)
+{
+    dev->user.cs_setup = (cs_setup_time > 0 ? 1 : 0);
+    dev->ctrl2.setup_time = cs_setup_time - 1;
 }
 
 #ifdef __cplusplus

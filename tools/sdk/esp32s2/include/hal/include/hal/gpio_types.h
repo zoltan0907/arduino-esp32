@@ -76,6 +76,9 @@ typedef enum {
 #define GPIO_SEL_44             ((uint64_t)(((uint64_t)1)<<44))  /*!< Pin 44 selected */
 #define GPIO_SEL_45             ((uint64_t)(((uint64_t)1)<<45))  /*!< Pin 45 selected */
 #define GPIO_SEL_46             ((uint64_t)(((uint64_t)1)<<46))  /*!< Pin 46 selected */
+#if CONFIG_IDF_TARGET_ESP32S3
+#define GPIO_SEL_47             ((uint64_t)(((uint64_t)1)<<47))  /*!< Pin 47 selected */
+#endif
 #endif
 
 #define GPIO_PIN_REG_0          IO_MUX_GPIO0_REG
@@ -125,6 +128,7 @@ typedef enum {
 #define GPIO_PIN_REG_44          IO_MUX_GPIO44_REG
 #define GPIO_PIN_REG_45          IO_MUX_GPIO45_REG
 #define GPIO_PIN_REG_46          IO_MUX_GPIO46_REG
+#define GPIO_PIN_REG_47          IO_MUX_GPIO47_REG
 
 #if CONFIG_IDF_TARGET_ESP32
 typedef enum {
@@ -292,7 +296,7 @@ typedef enum {
     GPIO_NUM_16 = 16,   /*!< GPIO16, input and output */
     GPIO_NUM_17 = 17,   /*!< GPIO17, input and output */
     GPIO_NUM_18 = 18,   /*!< GPIO18, input and output */
-    // TODO: ESP32C3 IDF-2463
+    GPIO_NUM_19 = 19,   /*!< GPIO19, input and output */
     GPIO_NUM_20 = 20,   /*!< GPIO20, input and output */
     GPIO_NUM_21 = 21,   /*!< GPIO21, input and output */
     GPIO_NUM_22 = 22,   /*!< GPIO22, input and output */

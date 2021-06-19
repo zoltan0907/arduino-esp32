@@ -1,16 +1,8 @@
-// Copyright 2018 Espressif Systems (Shanghai) PTE LTD
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ * SPDX-FileCopyrightText: 2018-2021 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 #ifndef _ESP_HTTP_SERVER_H_
 #define _ESP_HTTP_SERVER_H_
@@ -1492,13 +1484,17 @@ esp_err_t httpd_sess_update_lru_counter(httpd_handle_t handle, int sockfd);
  * @brief   Returns list of current socket descriptors of active sessions
  *
  * @param[in] handle    Handle to server returned by httpd_start
- * @param[in,out] fds   In: Number of fds allocated in the supplied structure client_fds
+ * @param[in,out] fds   In: Size of provided client_fds array
  *                      Out: Number of valid client fds returned in client_fds,
  * @param[out] client_fds  Array of client fds
  *
+ * @note Size of provided array has to be equal or greater then maximum number of opened
+ *       sockets, configured upon initialization with max_open_sockets field in
+ *       httpd_config_t structure.
+ *
  * @return
  *  - ESP_OK              : Successfully retrieved session list
- *  - ESP_ERR_INVALID_ARG : Wrong arguments or list is longer than allocated
+ *  - ESP_ERR_INVALID_ARG : Wrong arguments or list is longer than provided array
  */
 esp_err_t httpd_get_client_list(httpd_handle_t handle, size_t *fds, int *client_fds);
 
@@ -1591,6 +1587,11 @@ typedef struct httpd_ws_frame {
 
 /**
  * @brief Receive and parse a WebSocket frame
+ *
+ * @note    Calling httpd_ws_recv_frame() with max_len as 0 will give actual frame size in pkt->len.
+ *          The user can dynamically allocate space for pkt->payload as per this length and call httpd_ws_recv_frame() again to get the actual data.
+ *          Please refer to the corresponding example for usage.
+ *
  * @param[in]   req         Current request
  * @param[out]  pkt         WebSocket packet
  * @param[in]   max_len     Maximum length for receive

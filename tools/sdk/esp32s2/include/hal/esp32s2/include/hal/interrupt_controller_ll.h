@@ -18,6 +18,8 @@
 #include "soc/soc_caps.h"
 #include "soc/soc.h"
 #include "xtensa/xtensa_api.h"
+#include "xtensa/config/specreg.h"
+#include "xt_instr_macros.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,6 +46,18 @@ static inline void intr_cntrl_ll_disable_interrupts(uint32_t mask)
 }
 
 /**
+ * @brief Read the current interrupt mask of the CPU running this code.
+ *
+ * @return The current interrupt bitmask.
+ */
+static inline uint32_t intr_cntrl_ll_read_interrupt_mask(void)
+{
+    uint32_t int_mask;
+    RSR(INTENABLE, int_mask);
+    return int_mask;
+}
+
+/**
  * @brief checks if given interrupt number has a valid handler
  *
  * @param intr interrupt number ranged from 0 to 31
@@ -62,7 +76,7 @@ static inline bool intr_cntrl_ll_has_handler(uint8_t intr, uint8_t cpu)
  * @param handler handler invoked when an interrupt occurs
  * @param arg optional argument to pass to the handler
  */
-static inline void intr_cntrl_ll_set_int_handler(uint8_t intr, interrupt_handler_t handler, void * arg)
+static inline void intr_cntrl_ll_set_int_handler(uint8_t intr, interrupt_handler_t handler, void *arg)
 {
     xt_set_interrupt_handler(intr, (xt_handler)handler, arg);
 }
@@ -74,32 +88,20 @@ static inline void intr_cntrl_ll_set_int_handler(uint8_t intr, interrupt_handler
  *
  * @return argument used by handler of passed interrupt number
  */
-static inline void * intr_cntrl_ll_get_int_handler_arg(uint8_t intr)
+static inline void *intr_cntrl_ll_get_int_handler_arg(uint8_t intr)
 {
     return xt_get_interrupt_handler_arg(intr);
 }
 
 /**
- * @brief Disables interrupts that are not located in iram
+ * @brief Acknowledge an edge-trigger interrupt by clearing its pending flag
  *
- * @param newmask mask of interrupts needs to be disabled
- * @return oldmask where to store old interrupts state
+ * @param intr interrupt number ranged from 0 to 31
  */
-static inline uint32_t intr_cntrl_ll_disable_int_mask(uint32_t newmask)
+static inline void intr_cntrl_ll_edge_int_acknowledge (int intr)
 {
-    return xt_int_disable_mask(newmask);
+    xthal_set_intclear(1 << intr);
 }
-
-/**
- * @brief Enables interrupts that are not located in iram
- *
- * @param newmask mask of interrupts needs to be disabled
- */
-static inline void intr_cntrl_ll_enable_int_mask(uint32_t newmask)
-{
-    xt_int_enable_mask(newmask);
-}
-
 #ifdef __cplusplus
 }
 #endif
